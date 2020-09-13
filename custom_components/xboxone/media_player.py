@@ -14,6 +14,7 @@ import requests
 import voluptuous as vol
 from urllib.parse import urljoin
 from packaging import version
+from functools import partial
 
 from homeassistant.components.media_player import (
     MediaPlayerEntity, PLATFORM_SCHEMA)
@@ -69,15 +70,16 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
     proto = 'https' if ssl else 'http'
     base_url = '{0}://{1}:{2}'.format(proto, host, port)
 
-    add_devices([XboxOneDevice(base_url, liveid, ip, name, auth)])
+    add_devices([XboxOneDevice(base_url, hass, liveid, ip, name, auth)])
 
 
 class XboxOne:
-    def __init__(self, base_url, liveid, ip, auth):
+    def __init__(self, hass, base_url, liveid, ip, auth):
         self.is_server_up = False
         self.is_server_correct_version = True
 
         self.base_url = base_url
+        self._hass = hass
         self.liveid = liveid
         self._ip = ip
         self._auth = auth
@@ -88,10 +90,25 @@ class XboxOne:
         self._volume_controls = None
         self._pins = None
 
-    def get(self, endpoint, *args, **kwargs):
+    async def get(self, endpoint, *args, **kwargs):
         endpoint = endpoint.replace('<liveid>', self.liveid)
         full_url = urljoin(self.base_url, endpoint)
-        return requests.get(full_url, *args, **kwargs)
+
+        try:
+            partial_req = partial(requests.get, full_url, *args, **kwargs)
+            response = await self._hass.loop.run_in_executor(None, partial_req)
+        except (requests.exceptions.RequestException, ValueError):
+            _LOGGER.warning('Request failed for url %s', url)
+        return None
+
+        if response.status_code != 200:
+            _LOGGER.warning(
+                'Invalid status_code %s from url %s',
+                response.status_code, url)
+            _LOGGER.warning(response.text)
+            return None
+
+        return response
 
     @property
     def available(self):
@@ -188,7 +205,7 @@ class XboxOne:
         }
 
         if not self._pins and self._check_authentication():
-            self._pins = self.get('/web/pins').json()
+            self._pins = await self.get('/web/pins').json()
 
         if self._pins:
             try:
@@ -207,11 +224,11 @@ class XboxOne:
 
     def _check_authentication(self):
         try:
-            response = self.get('/auth').json()
+            response = await self.get('/auth').json()
             if response.get('authenticated'):
                 return True
 
-            response = self.get('/auth/refresh').json()
+            response = await self.get('/auth/refresh').json()
             if response.get('success'):
                 return True
 
@@ -228,7 +245,7 @@ class XboxOne:
         params = None
         if self._ip:
             params = {'addr': self._ip}
-        self.get('/device', params=params)
+        await self.get('/device', params=params)
 
     def _connect(self):
         if self._auth and not self._check_authentication():
@@ -238,7 +255,7 @@ class XboxOne:
             params = {}
             if not self._auth:
                 params['anonymous'] = True
-            response = self.get(url, params=params).json()
+            response = await self.get(url, params=params).json()
             if not response.get('success'):
                 _LOGGER.error('Failed to connect to console {0}: {1}'.format(self.liveid, str(response)))
                 return False
@@ -253,7 +270,7 @@ class XboxOne:
 
     def _get_device_info(self):
         try:
-            response = self.get('/device/<liveid>').json()
+            response = await self.get('/device/<liveid>').json()
             if not response.get('success'):
                 _LOGGER.debug('Console {0} not available'.format(self.liveid))
                 return None
@@ -268,7 +285,7 @@ class XboxOne:
 
     def _update_console_status(self):
         try:
-            response = self.get('/device/<liveid>/console_status').json()
+            response = await self.get('/device/<liveid>/console_status').json()
             if not response.get('success'):
                 _LOGGER.error('Console {0} not available'.format(self.liveid))
                 return None
@@ -283,7 +300,7 @@ class XboxOne:
 
     def _update_media_status(self):
         try:
-            response = self.get('/device/<liveid>/media_status').json()
+            response = await self.get('/device/<liveid>/media_status').json()
             if not response.get('success'):
                 _LOGGER.error('Console {0} not available'.format(self.liveid))
                 return None
@@ -301,7 +318,7 @@ class XboxOne:
             return
 
         try:
-            response = self.get('/device/<liveid>/ir').json()
+            response = await self.get('/device/<liveid>/ir').json()
             if not response.get('success'):
                 _LOGGER.error('Console {0} not available'.format(self.liveid))
                 return None
@@ -320,7 +337,7 @@ class XboxOne:
             params = None
             if self._ip:
                 params = { 'addr': self._ip }
-            response = self.get(url, params=params).json()
+            response = await self.get(url, params=params).json()
             if not response.get('success'):
                 _LOGGER.error('Failed to poweron {0}'.format(self.liveid))
                 return None
@@ -332,7 +349,7 @@ class XboxOne:
 
     def poweroff(self):
         try:
-            response = self.get('/device/<liveid>/poweroff').json()
+            response = await self.get('/device/<liveid>/poweroff').json()
             if not response.get('success'):
                 _LOGGER.error('Failed to poweroff {0}'.format(self.liveid))
                 return None
@@ -344,7 +361,7 @@ class XboxOne:
 
     def ir_command(self, device, command):
         try:
-            response = self.get('/device/<liveid>/ir').json()
+            response = await self.get('/device/<liveid>/ir').json()
             if not response.get('success'):
                 return None
         except requests.exceptions.RequestException:
@@ -362,7 +379,7 @@ class XboxOne:
             button_url = enabled_commands.get(command).get('url')
 
         try:
-            response = self.get('{0}'.format(button_url)).json()
+            response = await self.get('{0}'.format(button_url)).json()
             if not response.get('success'):
                 return None
         except requests.exceptions.RequestException:
@@ -375,7 +392,7 @@ class XboxOne:
 
     def media_command(self, command):
         try:
-            response = self.get('/device/<liveid>/media').json()
+            response = await self.get('/device/<liveid>/media').json()
             if not response.get('success'):
                 return None
         except requests.exceptions.RequestException:
@@ -391,7 +408,7 @@ class XboxOne:
             return None
 
         try:
-            response = self.get('/device/<liveid>/media/{0}'.format(command)).json()
+            response = await self.get('/device/<liveid>/media/{0}'.format(command)).json()
             if not response.get('success'):
                 return None
         except requests.exceptions.RequestException:
@@ -413,7 +430,7 @@ class XboxOne:
             return None
 
         try:
-            response = self.get(url).json()
+            response = await self.get(url).json()
             if not response.get('success'):
                 return None
         except requests.exceptions.RequestException:
@@ -430,7 +447,7 @@ class XboxOne:
             apps = self.all_apps
             if launch_uri in apps.keys():
                 launch_uri = apps[launch_uri]
-            response = self.get('/device/<liveid>/launch/{0}'.format(launch_uri)).json()
+            response = await self.get('/device/<liveid>/launch/{0}'.format(launch_uri)).json()
             if not response.get('success'):
                 return None
         except requests.exceptions.RequestException:
@@ -447,7 +464,7 @@ class XboxOne:
             return False
 
         try:
-            resp = self.get('/versions').json()
+            resp = await self.get('/versions').json()
             lib_version = resp['versions']['xbox-smartglass-core']
             if version.parse(lib_version) < version.parse(MIN_REQUIRED_SERVER_VERSION):
                 self.is_server_correct_version = False
