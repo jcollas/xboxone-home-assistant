@@ -111,7 +111,7 @@ class XboxOne:
 
         try:
             json_response = response.json()
-            _LOGGER.warning(json_response)
+            _LOGGER.debug(json_response)
         except (ValueError):
             _LOGGER.warning('Unable to parse JSON from response')
             return {}
