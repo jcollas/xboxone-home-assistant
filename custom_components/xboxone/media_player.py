@@ -98,10 +98,9 @@ class XboxOne:
         try:
             partial_req = partial(requests.get, full_url, **kwargs)
             response = await self._hass.loop.run_in_executor(None, partial_req)
-            _LOGGER.warn(response)
         except (requests.exceptions.RequestException, ValueError):
             _LOGGER.warning('Request failed for url %s', url)
-        return None
+            return None
 
         if response.status_code != 200:
             _LOGGER.warning(
@@ -289,7 +288,7 @@ class XboxOne:
             response = await self.get('/device/<liveid>')
             if response:
                 response = response.json()
-                _LOGGER.warn(response)
+                # _LOGGER.warn(response)
                 if not response.get('success'):
                     _LOGGER.debug('Console {0} not available'.format(self.liveid))
                     return None
