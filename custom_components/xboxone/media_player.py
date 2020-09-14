@@ -89,7 +89,7 @@ class XboxOne:
         self._console_status = None
         self._volume_controls = None
         self._pins = None
-        self._apps = None
+        self._apps = {}
 
     async def get(self, endpoint, *args, **kwargs):
         endpoint = endpoint.replace('<liveid>', self.liveid)
