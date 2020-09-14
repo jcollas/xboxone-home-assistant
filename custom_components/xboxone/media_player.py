@@ -635,57 +635,57 @@ class XboxOneDevice(MediaPlayerEntity):
 
     async def async_update(self):
         """Get the latest date and update device state."""
-        self._xboxone.refresh()
+        await self._xboxone.refresh()
 
     async def async_turn_on(self):
         """Turn on the device."""
-        self._xboxone.poweron()
+        await self._xboxone.poweron()
 
     async def turn_off(self):
         """Turn off the device."""
-        self._xboxone.poweroff()
+        await self._xboxone.poweroff()
 
     async def async_mute_volume(self, mute):
         """Mute the volume."""
-        self._xboxone.volume_command('mute')
+        await self._xboxone.volume_command('mute')
 
     async def async_volume_up(self):
         """Turn volume up for media player."""
-        self._xboxone.volume_command('up')
+        await self._xboxone.volume_command('up')
 
     async def async_volume_down(self):
         """Turn volume down for media player."""
-        self._xboxone.volume_command('down')
+        await self._xboxone.volume_command('down')
 
     async def async_media_play(self):
         """Send play command."""
-        self._xboxone.media_command('play')
+        await self._xboxone.media_command('play')
 
     async def async_media_pause(self):
         """Send pause command."""
-        self._xboxone.media_command('pause')
+        await self._xboxone.media_command('pause')
 
     async def async_media_stop(self):
-        self._xboxone.media_command('stop')
+        await self._xboxone.media_command('stop')
 
     async def async_media_play_pause(self):
         """Send play/pause command."""
-        self._xboxone.media_command('play_pause')
+        await self._xboxone.media_command('play_pause')
 
     async def async_media_previous_track(self):
         """Send previous track command."""
         if self._xboxone.active_app == 'TV':
-            self._xboxone.ir_command('stb', 'btn.ch_down')
+            await self._xboxone.ir_command('stb', 'btn.ch_down')
         else:
-            self._xboxone.media_command('prev_track')
+            await self._xboxone.media_command('prev_track')
 
     async def async_media_next_track(self):
         """Send next track command."""
         if self._xboxone.active_app == 'TV':
-            self._xboxone.ir_command('stb', 'btn.ch_up')
+            await self._xboxone.ir_command('stb', 'btn.ch_up')
         else:
-            self._xboxone.media_command('next_track')
+            await self._xboxone.media_command('next_track')
 
     async def async_select_source(self, source):
         """Select input source."""
-        self._xboxone.launch_title(source)
+        await self._xboxone.launch_title(source)
