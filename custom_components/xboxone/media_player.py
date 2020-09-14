@@ -202,7 +202,7 @@ class XboxOne:
     def all_apps(self):
         return self._apps
 
-    async _refresh_all_apps(self):
+    async def _refresh_all_apps(self):
         apps = {
             'Home': 'ms-xbox-dashboard://home?view=home',
             'TV': 'ms-xbox-livetv://'
