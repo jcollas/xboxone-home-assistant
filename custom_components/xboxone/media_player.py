@@ -70,7 +70,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
     proto = 'https' if ssl else 'http'
     base_url = '{0}://{1}:{2}'.format(proto, host, port)
 
-    add_devices([XboxOneDevice(base_url, hass, liveid, ip, name, auth)])
+    add_devices([XboxOneDevice(hass, base_url, liveid, ip, name, auth)])
 
 
 class XboxOne:
