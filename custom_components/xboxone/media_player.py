@@ -507,7 +507,7 @@ class XboxOne:
             response = await self.get('/versions')
             if response:
                 response = response.json()
-                lib_version = resp['versions']['xbox-smartglass-core']
+                lib_version = response['versions']['xbox-smartglass-core']
                 if version.parse(lib_version) < version.parse(MIN_REQUIRED_SERVER_VERSION):
                     self.is_server_correct_version = False
                     _LOGGER.error("Invalid xbox-smartglass-core version: %s. Min Required: %s",
