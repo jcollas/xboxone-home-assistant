@@ -91,12 +91,12 @@ class XboxOne:
         self._pins = None
         self._apps = {}
 
-    async def get(self, endpoint, *args, **kwargs):
+    async def get(self, endpoint, **kwargs):
         endpoint = endpoint.replace('<liveid>', self.liveid)
         full_url = urljoin(self.base_url, endpoint)
 
         try:
-            partial_req = partial(requests.get, full_url, *args, **kwargs)
+            partial_req = partial(requests.get, full_url, **kwargs)
             response = await self._hass.loop.run_in_executor(None, partial_req)
             _LOGGER.warn(response)
         except (requests.exceptions.RequestException, ValueError):
