@@ -99,13 +99,13 @@ class XboxOne:
             partial_req = partial(requests.get, full_url, **kwargs)
             response = await self._hass.loop.run_in_executor(None, partial_req)
         except (requests.exceptions.RequestException, ValueError):
-            _LOGGER.warning('Request failed for url %s', url)
+            _LOGGER.warning('Request failed for url %s', full_url)
             return None
 
         if response.status_code != 200:
             _LOGGER.warning(
                 'Invalid status_code %s from url %s',
-                response.status_code, url)
+                response.status_code, full_url)
             _LOGGER.warning(response.text)
             return None
 
