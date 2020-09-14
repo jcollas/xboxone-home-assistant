@@ -208,7 +208,7 @@ class XboxOne:
             'TV': 'ms-xbox-livetv://'
         }
 
-        if not self._pins and self._check_authentication():
+        if not self._pins and await self._check_authentication():
             response = await self.get('/web/pins')
             if response:
                 self._pins = response.json()
@@ -261,7 +261,7 @@ class XboxOne:
         await self.get('/device', params=params)
 
     async def _connect(self):
-        if self._auth and not self._check_authentication():
+        if self._auth and not await self._check_authentication():
             return False
         try:
             url = '/device/<liveid>/connect'
@@ -530,7 +530,7 @@ class XboxOne:
         await self._refresh_devicelist()
         await self._refresh_all_apps()
 
-        device_info = self._get_device_info()
+        device_info = await self._get_device_info()
         if not device_info or device_info.get('device_status') == 'Unavailable':
             self._available = False
             self._connected = False
