@@ -98,21 +98,19 @@ class XboxOne:
         try:
             partial_req = partial(requests.get, full_url, **kwargs)
             response = await self._hass.loop.run_in_executor(None, partial_req)
-        except (requests.exceptions.RequestException, ValueError):
-            _LOGGER.warning('Request failed for url %s', full_url)
-            return None
 
-        if response.status_code != 200:
-            _LOGGER.warning(
-                'Invalid status_code %s from url %s',
-                response.status_code, full_url)
-            _LOGGER.warning(response.text)
-            return None
+            if response.status_code != 200:
+                _LOGGER.warning('Invalid status_code %s from url %s',
+                    response.status_code, full_url)
+                _LOGGER.warning(response.text)
+                return {}
 
-        try:
             json_response = response.json()
-            _LOGGER.debug(json_response)
-        except (ValueError):
+
+        except requests.exceptions.RequestException:
+            _LOGGER.warning('Request failed for url %s', full_url)
+            return {}
+        except ValueError:
             _LOGGER.warning('Unable to parse JSON from response')
             return {}
 
@@ -237,20 +235,14 @@ class XboxOne:
         return apps
 
     async def _check_authentication(self):
-        try:
-            response = await self.get('/auth')
-            if response.get('authenticated'):
-                return True
 
-            response = await self.get('/auth/refresh')
-            if response.get('success'):
-                return True
+        response = await self.get('/auth')
+        if response.get('authenticated'):
+            return True
 
-        except requests.exceptions.RequestException:
-            _LOGGER.error('Unreachable /auth endpoint')
-            return False
-        except Exception as e:
-            _LOGGER.error('Unknown Error: %s', e)
+        response = await self.get('/auth/refresh')
+        if response.get('success'):
+            return True
 
         _LOGGER.error('Refreshing authentication tokens failed!')
         return False
@@ -264,66 +256,42 @@ class XboxOne:
     async def _connect(self):
         if self._auth and not await self._check_authentication():
             return False
-        try:
-            url = '/device/<liveid>/connect'
-            params = {}
-            if not self._auth:
-                params['anonymous'] = True
-            response = await self.get(url, params=params)
-            if not response.get('success'):
-                _LOGGER.error('Failed to connect to console {0}: {1}'.format(self.liveid, str(response)))
-                return False
-        except requests.exceptions.RequestException:
-            _LOGGER.error('Unreachable /connect endpoint')
+
+        url = '/device/<liveid>/connect'
+        params = {}
+        if not self._auth:
+            params['anonymous'] = True
+        response = await self.get(url, params=params)
+        if not response.get('success'):
+            _LOGGER.error('Failed to connect to console {0}: {1}'.format(self.liveid, str(response)))
             return False
-        except Exception as e:
-            _LOGGER.error('Unknown Error: %s', e)
-            return None
 
         return True
 
     async def _get_device_info(self):
-        try:
-            response = await self.get('/device/<liveid>')
-            # _LOGGER.warn(response)
-            if not response.get('success'):
-                _LOGGER.debug(f"Console {self.liveid} not available")
-                return None
-        except requests.exceptions.RequestException:
-            _LOGGER.error('Unreachable device info /<liveid> endpoint')
-            return None
-        except Exception as e:
-            _LOGGER.error('Unknown Error: %s', e)
+
+        response = await self.get('/device/<liveid>')
+        # _LOGGER.warn(response)
+        if not response.get('success'):
+            _LOGGER.debug(f"Console {self.liveid} not available")
             return None
 
         return response['device']
 
     async def _update_console_status(self):
-        try:
-            response = await self.get('/device/<liveid>/console_status')
-            if not response.get('success'):
-                _LOGGER.error(f"Console {self.liveid} not available")
-                return None
-        except requests.exceptions.RequestException:
-            _LOGGER.error('Unreachable /console_status endpoint')
-            return None
-        except Exception as e:
-            _LOGGER.error('Unknown Error: %s', e)
+
+        response = await self.get('/device/<liveid>/console_status')
+        if not response.get('success'):
+            _LOGGER.error(f"Console {self.liveid} not available")
             return None
 
         self._console_status = response['console_status']
 
     async def _update_media_status(self):
-        try:
-            response = await self.get('/device/<liveid>/media_status')
-            if not response.get('success'):
-                _LOGGER.error(f"Console {self.liveid} not available")
-                return None
-        except requests.exceptions.RequestException:
-            _LOGGER.error('Unreachable /media_status endpoint')
-            return None
-        except Exception as e:
-            _LOGGER.error('Unknown Error: %s', e)
+
+        response = await self.get('/device/<liveid>/media_status')
+        if not response.get('success'):
+            _LOGGER.error(f"Console {self.liveid} not available")
             return None
 
         self._media_status = response['media_status']
@@ -332,59 +300,40 @@ class XboxOne:
         if self._volume_controls:
             return
 
-        try:
-            response = await self.get('/device/<liveid>/ir')
-            if not response.get('success'):
-                _LOGGER.error(f"Console {self.liveid} not available")
-                return None
-        except requests.exceptions.RequestException:
-            _LOGGER.error('Unreachable /ir endpoint')
-            return None
-        except Exception as e:
-            _LOGGER.error('Unknown Error: %s', e)
+        response = await self.get('/device/<liveid>/ir')
+        if not response.get('success'):
+            _LOGGER.error(f"Console {self.liveid} not available")
             return None
 
         self._volume_controls = response
 
     async def poweron(self):
-        try:
-            url = '/device/<liveid>/poweron'
-            params = None
-            if self._ip:
-                params = { 'addr': self._ip }
-            response = await self.get(url, params=params)
-            if not response.get('success'):
-                _LOGGER.error(f"Failed to poweron {self.liveid}")
-                return None
-        except requests.exceptions.RequestException:
-            _LOGGER.error('Unreachable /poweron endpoint')
+
+        url = '/device/<liveid>/poweron'
+        params = None
+        if self._ip:
+            params = { 'addr': self._ip }
+        response = await self.get(url, params=params)
+        if not response.get('success'):
+            _LOGGER.error(f"Failed to poweron {self.liveid}")
             return None
 
         return response
 
     async def poweroff(self):
-        try:
-            response = await self.get('/device/<liveid>/poweroff')
-            if not response.get('success'):
-                _LOGGER.error(f"Failed to poweroff {self.liveid}")
-                return None
-        except requests.exceptions.RequestException:
-            _LOGGER.error(f"Failed to call poweroff for {self.liveid}")
+
+        response = await self.get('/device/<liveid>/poweroff')
+        if not response.get('success'):
+            _LOGGER.error(f"Failed to poweroff {self.liveid}")
             return None
 
         return response
 
     async def ir_command(self, device, command):
-        try:
-            response = await self.get('/device/<liveid>/ir')
-            if not response.get('success'):
-                return None
-        except requests.exceptions.RequestException:
-            _LOGGER.error(f"Failed to get enabled media commands for {self.liveid}")
+
+        response = await self.get('/device/<liveid>/ir')
+        if not response.get('success'):
             return None
-        except Exception as e:
-            _LOGGER.error('Unknown Error: %s', e)
-            return
 
         enabled_commands = response.get(device).get('buttons')
         if command not in enabled_commands:
@@ -393,28 +342,16 @@ class XboxOne:
         else:
             button_url = enabled_commands.get(command).get('url')
 
-        try:
-            response = await self.get('{0}'.format(button_url))
-            if not response.get('success'):
-                return None
-        except requests.exceptions.RequestException:
-            _LOGGER.error(f"Failed to get enabled ir commands for {self.liveid}")
+        response = await self.get('{0}'.format(button_url))
+        if not response.get('success'):
             return None
-        except Exception as e:
-            _LOGGER.error('Unknown Error: %s', e)
 
         return response
 
     async def media_command(self, command):
-        try:
-            response = await self.get('/device/<liveid>/media')
-            if not response.get('success'):
-                return None
-        except requests.exceptions.RequestException:
-            _LOGGER.error(f"Failed to get enabled media commands for {self.liveid}")
-            return None
-        except Exception as e:
-            _LOGGER.error('Unknown Error: %s', e)
+
+        response = await self.get('/device/<liveid>/media')
+        if not response.get('success'):
             return None
 
         enabled_commands = response.get('commands')
@@ -422,15 +359,8 @@ class XboxOne:
             _LOGGER.error(f"Provided command {command} not enabled for current media")
             return None
 
-        try:
-            response = await self.get('/device/<liveid>/media/{0}'.format(command))
-            if not response.get('success'):
-                return None
-        except requests.exceptions.RequestException:
-            _LOGGER.error(f"Failed to get enabled media commands for {self.liveid}")
-            return None
-        except Exception as e:
-            _LOGGER.error('Unknown Error: %s', e)
+        response = await self.get(f"/device/<liveid>/media/{command}")
+        if not response.get('success'):
             return None
 
         return response
@@ -444,32 +374,19 @@ class XboxOne:
         if not url:
             return None
 
-        try:
-            response = await self.get(url)
-            if not response.get('success'):
-                return None
-        except requests.exceptions.RequestException:
-            _LOGGER.error(f"Failed to get enabled volume commands for {self.liveid}")
-            return None
-        except Exception as e:
-            _LOGGER.error('Unknown Error: %s', e)
+        response = await self.get(url)
+        if not response.get('success'):
             return None
 
         return response
 
     async def launch_title(self, launch_uri):
-        try:
-            apps = self.all_apps
-            if launch_uri in apps.keys():
-                launch_uri = apps[launch_uri]
-            response = await self.get('/device/<liveid>/launch/{0}'.format(launch_uri))
-            if not response.get('success'):
-                return None
-        except requests.exceptions.RequestException:
-            _LOGGER.error(f"Failed to launch title \'{lauch_url}\' for {self.liveid}")
-            return None
-        except Exception as e:
-            _LOGGER.error('Unknown Error: %s', e)
+
+        apps = self.all_apps
+        if launch_uri in apps.keys():
+            launch_uri = apps[launch_uri]
+        response = await self.get(f"/device/<liveid>/launch/{launch_uri}")
+        if not response.get('success'):
             return None
 
         return response
@@ -478,16 +395,16 @@ class XboxOne:
         if not self.is_server_correct_version:
             return False
 
-        try:
-            response = await self.get('/versions')
-            lib_version = response['versions']['xbox-smartglass-core']
-            if version.parse(lib_version) < version.parse(MIN_REQUIRED_SERVER_VERSION):
-                self.is_server_correct_version = False
-                _LOGGER.error("Invalid xbox-smartglass-core version: %s. Min Required: %s",
-                            lib_version, MIN_REQUIRED_SERVER_VERSION)
-        except requests.exceptions.RequestException:
+        response = await self.get('/versions')
+        if not response:
             self.is_server_up = False
             return False
+
+        lib_version = response['versions']['xbox-smartglass-core']
+        if version.parse(lib_version) < version.parse(MIN_REQUIRED_SERVER_VERSION):
+            self.is_server_correct_version = False
+            _LOGGER.error("Invalid xbox-smartglass-core version: %s. Min Required: %s",
+                        lib_version, MIN_REQUIRED_SERVER_VERSION)
 
         self.is_server_up = True
         return True
