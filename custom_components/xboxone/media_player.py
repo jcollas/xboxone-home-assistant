@@ -89,6 +89,7 @@ class XboxOne:
         self._console_status = None
         self._volume_controls = None
         self._pins = None
+        self._apps = None
 
     async def get(self, endpoint, *args, **kwargs):
         endpoint = endpoint.replace('<liveid>', self.liveid)
@@ -199,6 +200,9 @@ class XboxOne:
 
     @property
     def all_apps(self):
+        return self._apps
+
+    async _refresh_all_apps(self):
         apps = {
             'Home': 'ms-xbox-dashboard://home?view=home',
             'TV': 'ms-xbox-livetv://'
@@ -220,9 +224,12 @@ class XboxOne:
             for app in active_titles:
                 if app.get('has_focus') and app.get('name') not in apps.keys():
                     apps[app.get('name')] = app.get('aum')
+
+        self._apps = apps
+
         return apps
 
-    def _check_authentication(self):
+    async def _check_authentication(self):
         try:
             response = await self.get('/auth').json()
             if response.get('authenticated'):
@@ -241,13 +248,13 @@ class XboxOne:
         _LOGGER.error('Refreshing authentication tokens failed!')
         return False
 
-    def _refresh_devicelist(self):
+    async def _refresh_devicelist(self):
         params = None
         if self._ip:
             params = {'addr': self._ip}
         await self.get('/device', params=params)
 
-    def _connect(self):
+    async def _connect(self):
         if self._auth and not self._check_authentication():
             return False
         try:
@@ -268,7 +275,7 @@ class XboxOne:
 
         return True
 
-    def _get_device_info(self):
+    async def _get_device_info(self):
         try:
             response = await self.get('/device/<liveid>').json()
             if not response.get('success'):
@@ -283,7 +290,7 @@ class XboxOne:
 
         return response['device']
 
-    def _update_console_status(self):
+    async def _update_console_status(self):
         try:
             response = await self.get('/device/<liveid>/console_status').json()
             if not response.get('success'):
@@ -298,7 +305,7 @@ class XboxOne:
 
         self._console_status = response['console_status']
 
-    def _update_media_status(self):
+    async def _update_media_status(self):
         try:
             response = await self.get('/device/<liveid>/media_status').json()
             if not response.get('success'):
@@ -313,7 +320,7 @@ class XboxOne:
 
         self._media_status = response['media_status']
 
-    def _update_volume_controls(self):
+    async def _update_volume_controls(self):
         if self._volume_controls:
             return
 
@@ -331,7 +338,7 @@ class XboxOne:
 
         self._volume_controls = response
 
-    def poweron(self):
+    async def poweron(self):
         try:
             url = '/device/<liveid>/poweron'
             params = None
@@ -347,7 +354,7 @@ class XboxOne:
 
         return response
 
-    def poweroff(self):
+    async def poweroff(self):
         try:
             response = await self.get('/device/<liveid>/poweroff').json()
             if not response.get('success'):
@@ -359,7 +366,7 @@ class XboxOne:
 
         return response
 
-    def ir_command(self, device, command):
+    async def ir_command(self, device, command):
         try:
             response = await self.get('/device/<liveid>/ir').json()
             if not response.get('success'):
@@ -390,7 +397,7 @@ class XboxOne:
 
         return response
 
-    def media_command(self, command):
+    async def media_command(self, command):
         try:
             response = await self.get('/device/<liveid>/media').json()
             if not response.get('success'):
@@ -420,7 +427,7 @@ class XboxOne:
 
         return response
 
-    def volume_command(self, command):
+    async def volume_command(self, command):
         if not self._volume_controls:
             return None
 
@@ -442,7 +449,7 @@ class XboxOne:
 
         return response
 
-    def launch_title(self, launch_uri):
+    async def launch_title(self, launch_uri):
         try:
             apps = self.all_apps
             if launch_uri in apps.keys():
@@ -459,7 +466,7 @@ class XboxOne:
 
         return response
 
-    def _check_server(self):
+    async def _check_server(self):
         if not self.is_server_correct_version:
             return False
 
@@ -477,7 +484,7 @@ class XboxOne:
         self.is_server_up = True
         return True
 
-    def refresh(self):
+    async def refresh(self):
         """
         Enumerate devices and refresh status info
         """
@@ -487,6 +494,7 @@ class XboxOne:
 
         self._check_authentication()
         self._refresh_devicelist()
+        self._refresh_all_apps()
 
         device_info = self._get_device_info()
         if not device_info or device_info.get('device_status') == 'Unavailable':
@@ -518,9 +526,9 @@ class XboxOne:
 class XboxOneDevice(MediaPlayerEntity):
     """Representation of an Xbox One device on the network."""
 
-    def __init__(self, base_url, liveid, ip, name, auth):
+    def __init__(self, hass, base_url, liveid, ip, name, auth):
         """Initialize the Xbox One device."""
-        self._xboxone = XboxOne(base_url, liveid, ip, auth)
+        self._xboxone = XboxOne(hass, base_url, liveid, ip, auth)
         self._name = name
         self._liveid = liveid
         self._state = STATE_UNKNOWN
@@ -625,59 +633,59 @@ class XboxOneDevice(MediaPlayerEntity):
         """Return a list of running apps."""
         return list(self._xboxone.all_apps.keys())
 
-    def update(self):
+    async def async_update(self):
         """Get the latest date and update device state."""
         self._xboxone.refresh()
 
-    def turn_on(self):
+    async def async_turn_on(self):
         """Turn on the device."""
         self._xboxone.poweron()
 
-    def turn_off(self):
+    async def turn_off(self):
         """Turn off the device."""
         self._xboxone.poweroff()
 
-    def mute_volume(self, mute):
+    async def async_mute_volume(self, mute):
         """Mute the volume."""
         self._xboxone.volume_command('mute')
 
-    def volume_up(self):
+    async def async_volume_up(self):
         """Turn volume up for media player."""
         self._xboxone.volume_command('up')
 
-    def volume_down(self):
+    async def async_volume_down(self):
         """Turn volume down for media player."""
         self._xboxone.volume_command('down')
 
-    def media_play(self):
+    async def async_media_play(self):
         """Send play command."""
         self._xboxone.media_command('play')
 
-    def media_pause(self):
+    async def async_media_pause(self):
         """Send pause command."""
         self._xboxone.media_command('pause')
 
-    def media_stop(self):
+    async def async_media_stop(self):
         self._xboxone.media_command('stop')
 
-    def media_play_pause(self):
+    async def async_media_play_pause(self):
         """Send play/pause command."""
         self._xboxone.media_command('play_pause')
 
-    def media_previous_track(self):
+    async def async_media_previous_track(self):
         """Send previous track command."""
         if self._xboxone.active_app == 'TV':
             self._xboxone.ir_command('stb', 'btn.ch_down')
         else:
             self._xboxone.media_command('prev_track')
 
-    def media_next_track(self):
+    async def async_media_next_track(self):
         """Send next track command."""
         if self._xboxone.active_app == 'TV':
             self._xboxone.ir_command('stb', 'btn.ch_up')
         else:
             self._xboxone.media_command('next_track')
 
-    def select_source(self, source):
+    async def async_select_source(self, source):
         """Select input source."""
         self._xboxone.launch_title(source)
