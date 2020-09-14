@@ -489,12 +489,12 @@ class XboxOne:
         Enumerate devices and refresh status info
         """
 
-        if not self._check_server():
+        if not await self._check_server():
             return
 
-        self._check_authentication()
-        self._refresh_devicelist()
-        self._refresh_all_apps()
+        await self._check_authentication()
+        await self._refresh_devicelist()
+        await self._refresh_all_apps()
 
         device_info = self._get_device_info()
         if not device_info or device_info.get('device_status') == 'Unavailable':
