@@ -305,7 +305,7 @@ class XboxOne:
         try:
             response = await self.get('/device/<liveid>/console_status')
             if response:
-                repsonse = response.json()
+                response = response.json()
                 if not response.get('success'):
                     _LOGGER.error('Console {0} not available'.format(self.liveid))
                     return None
