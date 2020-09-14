@@ -545,7 +545,7 @@ class XboxOne:
             if connection_state == 'Connected':
                 self._connected = True
             else:
-                success = self._connect()
+                success = await self._connect()
                 if not success:
                     _LOGGER.error('Failed to connect to {0}'.format(self.liveid))
                     self._connected = False
@@ -553,9 +553,9 @@ class XboxOne:
                     self._connected = True
 
         if self.available and self.connected:
-            self._update_console_status()
-            self._update_media_status()
-            self._update_volume_controls()
+            await self._update_console_status()
+            await self._update_media_status()
+            await self._update_volume_controls()
 
 
 class XboxOneDevice(MediaPlayerEntity):
