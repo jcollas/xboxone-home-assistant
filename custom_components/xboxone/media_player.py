@@ -503,7 +503,7 @@ class XboxOne:
             return False
 
         try:
-            resp = await self.get('/versions')
+            response = await self.get('/versions')
             if response:
                 response = response.json()
                 lib_version = resp['versions']['xbox-smartglass-core']
