@@ -8,48 +8,48 @@ CREDITS:
 - This module is based on media_player.firetv component, initially created by @happyleavesaoc
 - Original code: https://github.com/home-assistant/home-assistant/blob/dev/homeassistant/components/media_player/firetv.py
 """
-import logging
 import functools
-import requests
-import voluptuous as vol
+import logging
 from urllib.parse import urljoin
-from packaging import version
 from functools import partial
 
-from homeassistant.components.media_player import MediaPlayerEntity, PLATFORM_SCHEMA
 
+import homeassistant.helpers.config_validation as cv
+import homeassistant.util.dt as dt_util
+import requests
+import voluptuous as vol
+from homeassistant.components.media_player import PLATFORM_SCHEMA, MediaPlayerEntity
 from homeassistant.components.media_player.const import (
+    MEDIA_TYPE_CHANNEL,
+    MEDIA_TYPE_MUSIC,
+    MEDIA_TYPE_TVSHOW,
+    MEDIA_TYPE_VIDEO,
     SUPPORT_NEXT_TRACK,
     SUPPORT_PAUSE,
+    SUPPORT_PLAY,
     SUPPORT_PREVIOUS_TRACK,
     SUPPORT_SELECT_SOURCE,
     SUPPORT_TURN_OFF,
     SUPPORT_TURN_ON,
-    SUPPORT_VOLUME_STEP,
     SUPPORT_VOLUME_MUTE,
-    SUPPORT_PLAY,
-    MEDIA_TYPE_MUSIC,
-    MEDIA_TYPE_VIDEO,
-    MEDIA_TYPE_TVSHOW,
-    MEDIA_TYPE_CHANNEL,
+    SUPPORT_VOLUME_STEP,
 )
 from homeassistant.const import (
+    CONF_AUTHENTICATION,
+    CONF_DEVICE,
+    CONF_HOST,
+    CONF_IP_ADDRESS,
+    CONF_NAME,
+    CONF_PORT,
+    CONF_SSL,
     STATE_IDLE,
     STATE_OFF,
+    STATE_ON,
     STATE_PAUSED,
     STATE_PLAYING,
     STATE_UNKNOWN,
-    STATE_ON,
-    CONF_HOST,
-    CONF_PORT,
-    CONF_SSL,
-    CONF_NAME,
-    CONF_DEVICE,
-    CONF_AUTHENTICATION,
-    CONF_IP_ADDRESS,
 )
-import homeassistant.util.dt as dt_util
-import homeassistant.helpers.config_validation as cv
+from packaging import version
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -361,7 +361,6 @@ class XboxOne:
         response = await self.get("/device/<liveid>/poweroff")
         if not response.get("success"):
             _LOGGER.error(f"Failed to poweroff {self.liveid}")
-            return None
 
         return response
 
